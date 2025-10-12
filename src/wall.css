@@ -1,0 +1,49 @@
+.wall {
+  background-color: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.grids {
+  display: grid;
+  flex-shrink: 0;
+}
+
+.flipper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+
+.flipper.is-transitioning {
+  transition: transform 0.8s;
+  transition-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+.flipper.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.front,
+.back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  overflow: hidden;
+}
+
+.back {
+  transform: rotateY(180deg);
+}
+
+.flipper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-select: none;
+  user-select: none;
+}
