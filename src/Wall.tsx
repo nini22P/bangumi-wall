@@ -4,8 +4,8 @@ import './wall.css';
 
 interface GridItemState {
   key: number;
-  front: Subject;
-  back?: Subject;
+  front: Subject | null;
+  back: Subject | null;
   isFlipped: boolean;
   isTransitioning: boolean;
 }
@@ -73,6 +73,7 @@ export default function Wall({ subjects }: { subjects: Subject[] }) {
     const newGrids = initialDisplaySubjects.map((subject, i) => ({
       key: i,
       front: subject,
+      back: null,
       isFlipped: false,
       isTransitioning: false,
     }));
@@ -102,28 +103,29 @@ export default function Wall({ subjects }: { subjects: Subject[] }) {
       lastAnimatedIndex.current = randomIndex;
 
       const newSubject = availableSubjectsRef.current.shift()!;
-      const subjectToReplace = grids[randomIndex].front;
+      const subjectToReplace = grids[randomIndex].front || grids[randomIndex].back!;
       availableSubjectsRef.current.push(subjectToReplace);
 
       setGrids(prev => prev.map((item, index) =>
         index === randomIndex
-          ? { ...item, back: newSubject, isFlipped: true, isTransitioning: true }
+          ? {
+            ...item,
+            front: item.isFlipped ? newSubject : item.front,
+            back: item.isFlipped ? item.back : newSubject,
+            isFlipped: !item.isFlipped,
+            isTransitioning: true,
+          }
           : item
       ));
-
-      setTimeout(() => {
-        setGrids(prev => prev.map((item, index) =>
-          index === randomIndex
-            ? { ...item, front: newSubject }
-            : item
-        ));
-      }, ANIMATION_DURATION / 2);
 
       setTimeout(() => {
         requestAnimationFrame(() => {
           setGrids(prev => prev.map((item, index) =>
             index === randomIndex
-              ? { ...item, isFlipped: false, isTransitioning: false }
+              ? {
+                ...item,
+                isTransitioning: false,
+              }
               : item
           ));
         });
@@ -166,12 +168,14 @@ export default function Wall({ subjects }: { subjects: Subject[] }) {
             style={{ aspectRatio: ASPECT_RATIO }}
           >
             <div className="front">
-              <a href={`https://bgm.tv/subject/${item.front.id}`} target="_blank" rel="noopener noreferrer">
-                <img src={item.front.images.common} alt="cover" loading="lazy" draggable="false" />
-              </a>
+              {item.front && (
+                <a href={`https://bgm.tv/subject/${item.front.id}`} target="_blank" rel="noopener noreferrer">
+                  <img src={item.front.images.common} alt="cover" loading="lazy" draggable="false" />
+                </a>
+              )}
             </div>
             <div className="back">
-              {item.isTransitioning && item.back && (
+              {item.back && (
                 <a href={`https://bgm.tv/subject/${item.back.id}`} target="_blank" rel="noopener noreferrer">
                   <img src={item.back.images.common} alt="cover" loading="lazy" draggable="false" />
                 </a>
