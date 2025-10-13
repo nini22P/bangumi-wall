@@ -103,8 +103,14 @@ export default function Wall({ subjects }: { subjects: Subject[] }) {
       lastAnimatedIndex.current = randomIndex;
 
       const newSubject = availableSubjectsRef.current.shift()!;
-      const subjectToReplace = grids[randomIndex].front || grids[randomIndex].back!;
-      availableSubjectsRef.current.push(subjectToReplace);
+
+      const subjectToRecycle = grids[randomIndex].isFlipped
+        ? grids[randomIndex].front
+        : grids[randomIndex].back;
+
+      if (subjectToRecycle) {
+        availableSubjectsRef.current.push(subjectToRecycle);
+      }
 
       setGrids(prev => prev.map((item, index) =>
         index === randomIndex
