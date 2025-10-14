@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
-import type { Subject } from './types';
-import './wall.css';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from 'react'
+import type { Params, Subject } from './types'
+import './wall.css'
 
 interface GridItemState {
   key: number;
@@ -10,150 +10,163 @@ interface GridItemState {
   isTransitioning: boolean;
 }
 
-const TARGET_ITEM_HEIGHT = 240;
-const ASPECT_RATIO = 2 / 3;
-const ANIMATION_DURATION = 800;
-const ANIMATION_INTERVAL = 3000;
-const PADDING = 6;
+const TARGET_ITEM_HEIGHT = 240
+const ASPECT_RATIO = 2 / 3
+const ANIMATION_DURATION = 800
+const ANIMATION_INTERVAL = 3000
+const PADDING = 6
 
 function shuffle<T>(array: T[]): T[] {
-  const newArray = [...array];
+  const newArray = [...array]
   for (let i = newArray.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]]
   }
-  return newArray;
+  return newArray
 }
 
-export default function Wall({ subjects }: { subjects: Subject[] }) {
-  const [grids, setGrids] = useState<GridItemState[]>([]);
-  const [cols, setCols] = useState(0);
-  const [rows, setRows] = useState(0);
+export default function Wall({ subjects, params }: { subjects: Subject[], params?: Params }) {
+  const [grids, setGrids] = useState<GridItemState[]>([])
+  const [cols, setCols] = useState(0)
+  const [rows, setRows] = useState(0)
 
-  const animationTimer = useRef<number | null>(null);
-  const lastAnimatedIndex = useRef<number | null>(null);
-  const availableSubjectsRef = useRef<Subject[]>([]);
+  const aspectRatio = useMemo(() => params?.aspectRatio ?? ASPECT_RATIO, [params?.aspectRatio])
+  const padding = useMemo(() => params?.padding ?? PADDING, [params?.padding])
+
+  const animationTimer = useRef<number | null>(null)
+  const lastAnimatedIndex = useRef<number | null>(null)
 
   useLayoutEffect(() => {
     const calculateLayout = () => {
-      const vh = window.innerHeight - (2 * PADDING);
-      const vw = window.innerWidth - (2 * PADDING);
+      const vh = window.innerHeight - (2 * padding)
+      const vw = window.innerWidth - (2 * padding)
 
-      const idealRows = Math.round((vh + PADDING) / (TARGET_ITEM_HEIGHT + PADDING));
-      const newRows = Math.max(1, idealRows);
+      let newRows = 1
 
-      const itemHeight = Math.floor((vh - PADDING * (newRows - 1)) / newRows);
-      const itemWidth = Math.floor(itemHeight * ASPECT_RATIO);
+      if (params?.rows) {
+        newRows = Math.max(1, params.rows)
+      } else {
+        const idealRows = Math.round((vh + padding) / (TARGET_ITEM_HEIGHT + padding))
+        newRows = Math.max(1, idealRows)
+      }
 
-      const maxCols = Math.floor(vw / itemWidth) + 1;
+      const itemHeight = Math.floor((vh - padding * (newRows - 1)) / newRows)
+      const itemWidth = Math.floor(itemHeight * (aspectRatio))
 
-      setCols(maxCols);
-      setRows(newRows);
-    };
+      const newCols = Math.floor(vw / itemWidth) + 1
 
-    calculateLayout();
-    window.addEventListener('resize', calculateLayout);
-    return () => window.removeEventListener('resize', calculateLayout);
-  }, []);
-
-  useEffect(() => {
-    if (subjects.length === 0 || cols === 0 || rows === 0) return;
-
-    const gridCount = cols * rows;
-
-    if (subjects.length < gridCount) {
-      console.warn("Warning: Not enough subjects to fill the grid without duplicates.");
+      setCols(newCols)
+      setRows(newRows)
     }
 
-    const shuffledSubjects = shuffle(subjects);
+    calculateLayout()
 
-    const initialDisplaySubjects = shuffledSubjects.slice(0, gridCount);
-    availableSubjectsRef.current = shuffledSubjects.slice(gridCount);
+    window.addEventListener('resize', calculateLayout)
+    return () => window.removeEventListener('resize', calculateLayout)
+  }, [params?.rows, padding, aspectRatio])
 
-    const newGrids = initialDisplaySubjects.map((subject, i) => ({
+  useEffect(() => {
+    if (subjects.length === 0 || cols === 0 || rows === 0) return
+
+    const gridCount = cols * rows
+
+    if (subjects.length < gridCount + 1) {
+      console.warn('Warning: Not enough subjects to sustain animation without repeating visible items.')
+    }
+
+    const shuffledSubjects = shuffle(subjects)
+
+    const frontSubjects = shuffledSubjects.slice(0, gridCount)
+    const backSubjects = shuffledSubjects.slice(gridCount, gridCount * 2)
+
+    const newGrids = Array.from({ length: gridCount }).map((_, i) => ({
       key: i,
-      front: subject,
-      back: null,
+      front: frontSubjects[i] || null,
+      back: backSubjects[i] || null,
       isFlipped: false,
       isTransitioning: false,
-    }));
+    }))
 
-    setGrids(newGrids);
-  }, [subjects, cols, rows]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGrids(newGrids)
+  }, [subjects, cols, rows])
 
   const stopAnimation = useCallback(() => {
     if (animationTimer.current) {
-      clearInterval(animationTimer.current);
-      animationTimer.current = null;
+      clearInterval(animationTimer.current)
+      animationTimer.current = null
     }
-  }, []);
+  }, [])
 
   const startAnimation = useCallback(() => {
-    stopAnimation();
+    stopAnimation()
 
     animationTimer.current = setInterval(() => {
-      if (availableSubjectsRef.current.length === 0 || grids.length === 0) {
-        return;
+      if (grids.length === 0) return
+
+      const visibleSubjectIds = new Set<string>()
+      grids.forEach(grid => {
+        const visibleSubject = grid.isFlipped ? grid.back : grid.front
+        if (visibleSubject) {
+          visibleSubjectIds.add(visibleSubject.id)
+        }
+      })
+
+      const availableSubjects = subjects.filter(s => !visibleSubjectIds.has(s.id))
+
+      if (availableSubjects.length === 0) {
+        console.warn('Animation stopped: No available unique subjects to flip.')
+        stopAnimation()
+        return
       }
 
-      let randomIndex;
+      let randomIndex
       do {
-        randomIndex = Math.floor(Math.random() * grids.length);
-      } while (randomIndex === lastAnimatedIndex.current);
-      lastAnimatedIndex.current = randomIndex;
+        randomIndex = Math.floor(Math.random() * grids.length)
+      } while (randomIndex === lastAnimatedIndex.current)
+      lastAnimatedIndex.current = randomIndex
 
-      const newSubject = availableSubjectsRef.current.shift()!;
+      const newSubject = availableSubjects[Math.floor(Math.random() * availableSubjects.length)]
 
-      const subjectToRecycle = grids[randomIndex].isFlipped
-        ? grids[randomIndex].front
-        : grids[randomIndex].back;
+      setGrids(prev => prev.map((item, index) => {
+        if (index !== randomIndex) return item
 
-      if (subjectToRecycle) {
-        availableSubjectsRef.current.push(subjectToRecycle);
-      }
-
-      setGrids(prev => prev.map((item, index) =>
-        index === randomIndex
-          ? {
-            ...item,
-            front: item.isFlipped ? newSubject : item.front,
-            back: item.isFlipped ? item.back : newSubject,
-            isFlipped: !item.isFlipped,
-            isTransitioning: true,
-          }
-          : item
-      ));
+        return {
+          ...item,
+          front: item.isFlipped ? newSubject : item.front,
+          back: item.isFlipped ? item.back : newSubject,
+          isFlipped: !item.isFlipped,
+          isTransitioning: true,
+        }
+      }))
 
       setTimeout(() => {
         requestAnimationFrame(() => {
           setGrids(prev => prev.map((item, index) =>
             index === randomIndex
-              ? {
-                ...item,
-                isTransitioning: false,
-              }
+              ? { ...item, isTransitioning: false }
               : item
-          ));
-        });
-      }, ANIMATION_DURATION);
+          ))
+        })
+      }, ANIMATION_DURATION)
 
-    }, ANIMATION_INTERVAL + Math.random() * 500);
-  }, [grids, stopAnimation]);
+    }, ANIMATION_INTERVAL + Math.random() * 500)
+  }, [grids, subjects, stopAnimation])
 
   useEffect(() => {
     if (document.visibilityState === 'visible') {
-      startAnimation();
+      startAnimation()
     }
     const handleVisibilityChange = () =>
-      document.hidden ? stopAnimation() : startAnimation();
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+      document.hidden ? stopAnimation() : startAnimation()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
-      stopAnimation();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [startAnimation, stopAnimation]);
+      stopAnimation()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [startAnimation, stopAnimation])
 
-  if (grids.length === 0) return null;
+  if (grids.length === 0) return null
 
   return (
     <div className="wall">
@@ -162,16 +175,16 @@ export default function Wall({ subjects }: { subjects: Subject[] }) {
         style={{
           gridTemplateColumns: `repeat(${cols}, 1fr)`,
           gridTemplateRows: `repeat(${rows}, 1fr)`,
-          gap: `${PADDING}px`,
-          padding: `${PADDING}px`,
-          height: `calc(100dvh - ${2 * PADDING}px)`
+          gap: `${padding}px`,
+          padding: `${padding}px`,
+          height: `calc(100dvh - ${2 * padding}px)`
         }}
       >
         {grids.map((item) => (
           <div
             key={item.key}
             className={`flipper ${item.isFlipped ? 'is-flipped' : ''} ${item.isTransitioning ? 'is-transitioning' : ''}`}
-            style={{ aspectRatio: ASPECT_RATIO }}
+            style={{ aspectRatio }}
           >
             <div className="front">
               {item.front && (
@@ -191,5 +204,5 @@ export default function Wall({ subjects }: { subjects: Subject[] }) {
         ))}
       </div>
     </div>
-  );
+  )
 }

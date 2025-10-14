@@ -1,0 +1,43 @@
+.safe-zone-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.safe-zone-overlay .safe-zone-band {
+  position: absolute;
+  pointer-events: auto;
+  /* background: rgba(255, 0, 0, 0.2); */
+}
+
+.safe-zone-overlay .top {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 16px;
+}
+
+.safe-zone-overlay .bottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 16px;
+}
+
+.safe-zone-overlay .left {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 16px;
+}
+
+.safe-zone-overlay .right {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+}

@@ -12,7 +12,7 @@ export default defineConfig([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
-      reactHooks.configs['recommended-latest'],
+      reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
     languageOptions: {
@@ -20,4 +20,10 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    rules: {
+      'semi': ['error', 'never'],
+      'quotes': ['error', 'single', { 'avoidEscape': true }],
+    },
+  }
 ])

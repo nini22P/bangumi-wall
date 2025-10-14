@@ -13,7 +13,7 @@ export const subjectTypeMap: Record<SubjectType, string | null> = {
   'music': '3',
   'game': '4',
   'real': '6',
-};
+}
 
 export type CollectionType =
   | 'all'
@@ -30,7 +30,7 @@ export const collectionTypeMap: Record<CollectionType, string | null> = {
   'do': '3',
   'on_hold': '4',
   'dropped': '5',
-};
+}
 
 export interface Subject {
   id: string,
@@ -64,6 +64,7 @@ export interface Params {
   username: string,
   subjectType?: SubjectType,
   collectionType?: CollectionType,
-  limit?: number,
-  offset?: number,
+  aspectRatio?: number,
+  rows?: number,
+  padding?: number,
 }
