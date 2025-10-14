@@ -10,7 +10,7 @@ export function useHash(defaultParams: Params): Params {
     const username = hashParams.get('username') ?? defaultParams.username
     const subjectType = hashParams.get('subject') as Params['subjectType'] ?? defaultParams.subjectType
     const collectionType = hashParams.get('collection') as Params['collectionType'] ?? defaultParams.collectionType
-    const aspectRatio = toNumber(hashParams.get('aspect')) || defaultParams.aspectRatio
+    const aspectRatio = toNumber(hashParams.get('aspect')) ?? defaultParams.aspectRatio
     const rows = toNumber(hashParams.get('rows')) ?? defaultParams.rows
     const padding = toNumber(hashParams.get('padding')) ?? defaultParams.padding
 

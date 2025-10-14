@@ -53,11 +53,13 @@ export interface Subject {
   rank: number,
 }
 
-export interface BgmCollectionResponse {
-  total: number;
+export interface CollectionResponse {
   data: {
     subject: Subject;
   }[];
+  limit: number;
+  offset: number;
+  total: number;
 }
 
 export interface Params {

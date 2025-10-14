@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import type { Params, Subject } from './types'
 import { getSubjects } from './api'
@@ -18,15 +18,15 @@ function App() {
 
   useEffect(
     () => {
-      getSubjects(params).then(items => {
-        setSubjects(items.subjects)
+      getSubjects(params, 50, 0).then(data => {
+        setSubjects(data.subjects)
       })
     },
     [params]
   )
 
   return (
-    <Fragment>
+    <>
       <Wall subjects={subjects} params={params} />
       <div className="safe-zone-overlay">
         <div className="safe-zone-band top" />
@@ -34,7 +34,7 @@ function App() {
         <div className="safe-zone-band bottom" />
         <div className="safe-zone-band left" />
       </div>
-    </Fragment>
+    </>
   )
 }
 

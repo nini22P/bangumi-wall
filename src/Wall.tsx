@@ -35,6 +35,7 @@ export default function Wall({ subjects, params }: { subjects: Subject[], params
 
   const animationTimer = useRef<number | null>(null)
   const lastAnimatedIndex = useRef<number | null>(null)
+  const availableSubjects = useRef<Map<Subject['id'], Subject>>(new Map())
 
   useLayoutEffect(() => {
     const calculateLayout = () => {
@@ -66,7 +67,7 @@ export default function Wall({ subjects, params }: { subjects: Subject[], params
   }, [params?.rows, padding, aspectRatio])
 
   useEffect(() => {
-    if (subjects.length === 0 || cols === 0 || rows === 0) return
+    if (subjects.length === 0 || cols <= 0 || rows <= 0) return
 
     const gridCount = cols * rows
 
@@ -77,12 +78,13 @@ export default function Wall({ subjects, params }: { subjects: Subject[], params
     const shuffledSubjects = shuffle(subjects)
 
     const frontSubjects = shuffledSubjects.slice(0, gridCount)
-    const backSubjects = shuffledSubjects.slice(gridCount, gridCount * 2)
+
+    availableSubjects.current = new Map(shuffledSubjects.slice(gridCount).map(s => [s.id, s]))
 
     const newGrids = Array.from({ length: gridCount }).map((_, i) => ({
       key: i,
-      front: frontSubjects[i] || null,
-      back: backSubjects[i] || null,
+      front: frontSubjects[i] ?? null,
+      back: null,
       isFlipped: false,
       isTransitioning: false,
     }))
@@ -104,41 +106,48 @@ export default function Wall({ subjects, params }: { subjects: Subject[], params
     animationTimer.current = setInterval(() => {
       if (grids.length === 0) return
 
-      const visibleSubjectIds = new Set<string>()
-      grids.forEach(grid => {
-        const visibleSubject = grid.isFlipped ? grid.back : grid.front
-        if (visibleSubject) {
-          visibleSubjectIds.add(visibleSubject.id)
-        }
-      })
-
-      const availableSubjects = subjects.filter(s => !visibleSubjectIds.has(s.id))
-
-      if (availableSubjects.length === 0) {
+      if (availableSubjects.current.size === 0) {
         console.warn('Animation stopped: No available unique subjects to flip.')
         stopAnimation()
         return
       }
 
       let randomIndex
+
       do {
         randomIndex = Math.floor(Math.random() * grids.length)
       } while (randomIndex === lastAnimatedIndex.current)
+
       lastAnimatedIndex.current = randomIndex
 
-      const newSubject = availableSubjects[Math.floor(Math.random() * availableSubjects.length)]
+      const newSubject = availableSubjects.current.values().next().value
 
-      setGrids(prev => prev.map((item, index) => {
-        if (index !== randomIndex) return item
+      if (!newSubject) return
 
-        return {
-          ...item,
-          front: item.isFlipped ? newSubject : item.front,
-          back: item.isFlipped ? item.back : newSubject,
-          isFlipped: !item.isFlipped,
+      setGrids(prev => {
+        const newGrids = [...prev]
+        const itemToFlip = newGrids[randomIndex]
+
+        if (!itemToFlip) return prev
+
+        const subjectToReplace = itemToFlip.isFlipped ? itemToFlip.back : itemToFlip.front
+
+        if (subjectToReplace) {
+          availableSubjects.current.set(subjectToReplace.id, subjectToReplace)
+        }
+
+        availableSubjects.current.delete(newSubject.id)
+
+        newGrids[randomIndex] = {
+          ...itemToFlip,
+          front: itemToFlip.isFlipped ? newSubject : itemToFlip.front,
+          back: !itemToFlip.isFlipped ? newSubject : itemToFlip.back,
+          isFlipped: !itemToFlip.isFlipped,
           isTransitioning: true,
         }
-      }))
+
+        return newGrids
+      })
 
       setTimeout(() => {
         requestAnimationFrame(() => {
@@ -151,7 +160,7 @@ export default function Wall({ subjects, params }: { subjects: Subject[], params
       }, ANIMATION_DURATION)
 
     }, ANIMATION_INTERVAL + Math.random() * 500)
-  }, [grids, subjects, stopAnimation])
+  }, [grids, stopAnimation])
 
   useEffect(() => {
     if (document.visibilityState === 'visible') {
@@ -180,28 +189,30 @@ export default function Wall({ subjects, params }: { subjects: Subject[], params
           height: `calc(100dvh - ${2 * padding}px)`
         }}
       >
-        {grids.map((item) => (
-          <div
-            key={item.key}
-            className={`flipper ${item.isFlipped ? 'is-flipped' : ''} ${item.isTransitioning ? 'is-transitioning' : ''}`}
-            style={{ aspectRatio }}
-          >
-            <div className="front">
-              {item.front && (
-                <a href={`https://bgm.tv/subject/${item.front.id}`} target="_blank" rel="noopener noreferrer">
-                  <img src={item.front.images.common} alt="cover" loading="lazy" draggable="false" />
-                </a>
-              )}
-            </div>
-            <div className="back">
-              {item.back && (
-                <a href={`https://bgm.tv/subject/${item.back.id}`} target="_blank" rel="noopener noreferrer">
-                  <img src={item.back.images.common} alt="cover" loading="lazy" draggable="false" />
-                </a>
-              )}
-            </div>
-          </div>
-        ))}
+        {grids.map((item) => <GridItem key={item.key} item={item} aspectRatio={aspectRatio} />)}
+      </div>
+    </div>
+  )
+}
+
+const GridItem = ({ item, aspectRatio }: { item: GridItemState, aspectRatio: number }) => {
+  return (
+    <div
+      key={item.key}
+      className={
+        [
+          'flipper',
+          item.isFlipped ? 'is-flipped' : '',
+          item.isTransitioning ? 'is-transitioning' : '',
+        ].join(' ')
+      }
+      style={{ aspectRatio }}
+    >
+      <div className="front">
+        {item.front && <img src={item.front.images.common} alt="cover" draggable="false" />}
+      </div>
+      <div className="back">
+        {item.back && <img src={item.back.images.common} alt="cover" draggable="false" />}
       </div>
     </div>
   )
