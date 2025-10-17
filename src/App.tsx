@@ -18,9 +18,16 @@ function App() {
 
   useEffect(
     () => {
-      getSubjects(params, 50, 0).then(data => {
-        setSubjects(data.subjects)
-      })
+      (async () => {
+        let subjects: Subject[] = []
+        const data = await getSubjects(params, 50, 0)
+        subjects = subjects.concat(data.subjects)
+        if (data.total >= 50) {
+          const data = await getSubjects(params, 50, 50)
+          subjects = subjects.concat(data.subjects)
+        }
+        setSubjects(subjects)
+      })()
     },
     [params]
   )
